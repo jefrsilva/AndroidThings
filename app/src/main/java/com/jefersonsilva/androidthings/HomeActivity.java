@@ -6,23 +6,38 @@ import android.os.Bundle;
 import android.util.Log;
 
 import com.google.android.things.pio.Gpio;
-import com.google.android.things.pio.GpioCallback;
 import com.google.android.things.pio.PeripheralManagerService;
 
-import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+// Available GPIO: [BCM12, BCM13, BCM16, BCM17, BCM18, BCM19, BCM20, BCM21, BCM22, BCM23, BCM24, BCM25, BCM26, BCM27, BCM4, BCM5, BCM6]
+
 
 public class HomeActivity extends AppCompatActivity {
 
     private static final String TAG = "FOCAFOCA";
-    private static final String GPIO_PIN_LED = "BCM17";
-    private static final String GPIO_PIN_BUTTON = "BCM27";
+
+    private List<Led> leds = new ArrayList<>();
+    private List<Button> buttons = new ArrayList<>();
+
+    private static final int RED = 0;
+    private static final int GREEN = 1;
+    private static final int BLUE = 2;
+    private static final int YELLOW = 3;
+
+    private static final String GPIO_PIN_YELLOW_LED = "BCM4";
+    private static final String GPIO_PIN_BLUE_LED = "BCM17";
+    private static final String GPIO_PIN_GREEN_LED = "BCM27";
+    private static final String GPIO_PIN_RED_LED = "BCM22";
+
+    private static final String GPIO_PIN_RED_BUTTON = "BCM26";
+    private static final String GPIO_PIN_GREEN_BUTTON = "BCM13";
+    private static final String GPIO_PIN_BLUE_BUTTON = "BCM6";
+    private static final String GPIO_PIN_YELLOW_BUTTON = "BCM5";
 
     public Handler handler = new Handler();
 
-    private Gpio ledGpio;
-    private Gpio buttonGpio;
-
-    private com.google.android.things.pio.GpioCallback buttonCallback;
     private GeniusRunnable geniusRunnable;
 
     @Override
@@ -32,43 +47,37 @@ public class HomeActivity extends AppCompatActivity {
         PeripheralManagerService service = new PeripheralManagerService();
         Log.d("FOCAFOCA", "Available GPIO: " + service.getGpioList());
 
-        try {
-            ledGpio = service.openGpio(GPIO_PIN_LED);
-            ledGpio.setDirection(Gpio.DIRECTION_OUT_INITIALLY_LOW);
-            Log.i(TAG, "LED Value: " + ledGpio.getValue());
+        leds.add(new Led(service, GPIO_PIN_RED_LED));
+        leds.add(new Led(service, GPIO_PIN_GREEN_LED));
+        leds.add(new Led(service, GPIO_PIN_BLUE_LED));
+        leds.add(new Led(service, GPIO_PIN_YELLOW_LED));
 
-            handler.post(new GeniusRunnable(ledGpio));
+        this.geniusRunnable = new GeniusRunnable(leds);
+        new Thread(geniusRunnable).start();
 
-            buttonGpio = service.openGpio(GPIO_PIN_BUTTON);
-            buttonGpio.setDirection(Gpio.DIRECTION_IN);
-            buttonGpio.setEdgeTriggerType(Gpio.EDGE_BOTH);
-            buttonGpio.registerGpioCallback(new ButtonCallback(geniusRunnable));
-        } catch (IOException e) {
-            Log.e(TAG, "Error on PeripheralIO API", e);
+        buttons.add(new Button(service, GPIO_PIN_RED_BUTTON, RED));
+        buttons.add(new Button(service, GPIO_PIN_GREEN_BUTTON, GREEN));
+        buttons.add(new Button(service, GPIO_PIN_BLUE_BUTTON, BLUE));
+        buttons.add(new Button(service, GPIO_PIN_YELLOW_BUTTON, YELLOW));
+
+        for (Button button : buttons) {
+            button.addCallback(new ButtonCallback(geniusRunnable, button.getColor()));
         }
+
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
 
-        handler.removeCallbacks(geniusRunnable);
+        // handler.removeCallbacks(geniusRunnable);
 
-        if (buttonGpio != null) {
-            buttonGpio.unregisterGpioCallback(buttonCallback);
-            try {
-                buttonGpio.close();
-            } catch (IOException e) {
-                Log.e(TAG, "Error on PeripheralIO API", e);
-            }
+        for (Button button : buttons) {
+            button.close();
         }
 
-        if (ledGpio != null) {
-            try {
-                ledGpio.close();
-            } catch (IOException e) {
-                Log.e(TAG, "Error on PeripheralIO API", e);
-            }
+        for (Led led : leds) {
+            led.close();
         }
     }
 }

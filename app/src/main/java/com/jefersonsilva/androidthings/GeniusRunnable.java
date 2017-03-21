@@ -56,7 +56,7 @@ public class GeniusRunnable implements Runnable {
 
                 case WAITING:
                     long currentTime = System.currentTimeMillis();
-                    if (currentTime - startWaiting > 5000) {
+                    if (currentTime - startWaiting > 5000 + (1000 * sequence.size())) {
                         if (sequencePosition < sequence.size()) {
                             state = GameState.GAMEOVER;
                         }
@@ -86,10 +86,10 @@ public class GeniusRunnable implements Runnable {
     private void blink(int color) {
         try {
             Led led = leds.get(color);
+            Thread.sleep(350);
             led.toggle();
-            Thread.sleep(500);
+            Thread.sleep(350);
             led.toggle();
-            Thread.sleep(500);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
